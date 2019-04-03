@@ -104,12 +104,29 @@ let os = opam_query "os"
 let distribution = opam_query "os-distribution"
 let family = opam_query "os-family"
 
+let family = match family with
+  | "windows" -> "conan" (* work around OPAM bug:
+                            "opam config set os-family conan && opam var os-family"
+                            doesn't work properly under windows (although "opam config list" does) *)
+  | _ -> family
+
 let opam_vars = [
   "arch", arch;
   "os", os;
   "os-distribution", distribution;
   "os-family", family;
 ]
+
+let conan_flags =
+  let settings =
+    List.map (fun k -> Printf.sprintf "%s=%s" k (List.assoc k opam_vars)) ["arch"] in
+  let vc_settings =
+    try
+      let vsver = Sys.getenv "VISUALSTUDIOVERSION" in
+      let vsver_major = String.sub vsver 0 (String.index vsver '.') in
+      ["compiler=\"Visual Studio\""; "compiler.version="^vsver_major]
+    with Not_found -> [] in
+  List.fold_right (fun s acc -> "-s"::s::acc) (settings @ vc_settings) []
 
 (* processing *)
 
@@ -142,6 +159,8 @@ let install_packages_commands ~interactive packages =
     if not interactive then opt @ r else r
   in
   match family with
+  | "conan" ->
+    ["conan"::"install"::(conan_flags @ packages)]
   | "homebrew" ->
     ["brew"::"install"::packages]
   | "macports" ->
@@ -199,6 +218,9 @@ module StringMap = Map.Make(String)
 (* filter 'packages' to retain only the installed ones *)
 let get_installed_packages (packages: string list): string list =
   match family with
+  | "conan" ->
+    let installed = try lines_of_command "conan search" with _ -> [] in
+    List.filter (fun p -> List.mem p packages) installed
   | "homebrew" ->
     let lines = try lines_of_command "brew list" with _ -> [] in
     let installed = List.flatten (List.map (string_split ' ') lines) in
