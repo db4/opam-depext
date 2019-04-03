@@ -3,7 +3,7 @@ all: shell/build.sh
 	sh -ex shell/build.sh
 
 shell/build.sh: shell/build.ml
-	ocaml $< byte > $@
+	ocaml $< byte | tr -d '\r' > $@
 	chmod a+x $@
 
 clean:

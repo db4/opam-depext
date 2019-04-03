@@ -4,7 +4,7 @@ module OCaml_version : sig
    val to_string : t -> string
    val of_string : string -> t
    val compare : t -> t -> int
-   val t : t  
+   val t : t
    module Since : sig
      val bytes: t
    end
@@ -21,7 +21,7 @@ end = struct
      |{major;minor;patch=Some patch;extra=None} -> Printf.sprintf "%d.%d.%d" major minor patch
      |{major;minor;patch=Some patch;extra=Some extra} -> Printf.sprintf "%d.%d.%d+%s" major minor patch extra
      |{major;minor;patch=None;extra=Some extra} -> Printf.sprintf "%d.%d+%s" major minor extra
-    	
+
    let parse s =
      try Scanf.sscanf s "%d.%d.%d+%s" (fun major minor patch extra -> v ~patch ~extra major minor)
      with End_of_file | Scanf.Scan_failure _ -> begin
@@ -71,11 +71,15 @@ end = struct
      List.iter (fun v -> Printf.eprintf "%s compared to %s: %d\n%!" (to_string t) (to_string v) (compare t v)) vers_t
 end
 
+let opam_depext = match Sys.os_type with
+  | "Win32" -> "opam-depext.exe"
+  | _ -> "opam-depext"
+
 let build_bytecode () =
-  print_endline "ocamlc -I src_ext/lib unix.cma cmdliner.cma -o opam-depext depext.ml"
+  Printf.printf "ocamlc -I src_ext/lib unix.cma cmdliner.cma -o %s depext.ml\n" opam_depext
 
 let build_native () =
-  print_endline "ocamlopt -I src_ext unix.cmxa cmdliner.cmxa -o opam-depext depext.ml"
+  Printf.printf "ocamlopt -I src_ext unix.cmxa cmdliner.cmxa -o %s depext.ml\n" opam_depext
 
 let usage () =
   Printf.eprintf "Usage: ocaml build.ml [byte|native]\n\nDefaults to 'native' build.\n%!";

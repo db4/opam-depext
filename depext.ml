@@ -2,9 +2,16 @@
 
 let debug = ref false
 
+let trim_cr s =
+  let len = String.length s in
+  if len > 0 && String.get s (len-1) = '\r' then
+    String.sub s 0 (len-1)
+  else
+    s
+
 let lines_of_channel ic =
   let rec aux acc =
-    let line = try Some (input_line ic) with End_of_file -> None in
+    let line = try Some (trim_cr (input_line ic)) with End_of_file -> None in
     match line with
     | Some s -> aux (s::acc)
     | None -> acc
@@ -54,11 +61,17 @@ let string_split char str =
   aux 0
 
 let has_command c =
-  let cmd = Printf.sprintf "command -v %s >/dev/null" c in
+  let cmd = match Sys.os_type with
+    | "Win32" -> Printf.sprintf "where %s 2>NUL" c
+    | _ -> Printf.sprintf "command -v %s >/dev/null" c in
   try Sys.command cmd = 0 with Sys_error _ -> false
 
+let dev_null = match Sys.os_type with
+  | "Win32" -> "NUL"
+  | _ -> "/dev/null"
+
 let run_command ?(no_stderr=false) c =
-  let c = if no_stderr then c @ ["2>/dev/null"] else c in
+  let c = if no_stderr then c @ ["2>"^dev_null] else c in
   let c = String.concat " " c in
   if !debug then Printf.eprintf "+ %s\n%!" c;
   Unix.system c
